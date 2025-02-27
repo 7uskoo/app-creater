@@ -1,0 +1,110 @@
+import React, { useState, useEffect } from "react";
+import { Button, Textarea, Card, CardContent } from "@/components/ui";
+import axios from "axios";
+
+export default function WorldChainAIBot() {
+  const appId = "app_a808623299453d9749270179b6a22f8c";
+  const walletAddress = "0xa20fb380d3bf5ffa959e5bfdcb1edd6ff3843f33";
+  const [description, setDescription] = useState("");
+  const [generatedCode, setGeneratedCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [usageCount, setUsageCount] = useState(0);
+  const [hasPaid, setHasPaid] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedUsage = localStorage.getItem("usageCount");
+      const savedPayment = localStorage.getItem("hasPaid");
+      const savedUser = localStorage.getItem("userId");
+
+      if (!savedUser) {
+        const newUserId = `user-${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem("userId", newUserId);
+      }
+      
+      if (savedUsage) setUsageCount(parseInt(savedUsage, 10));
+      if (savedPayment === "true") setHasPaid(true);
+    } catch (error) {
+      console.error("Error loading data from localStorage:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("usageCount", usageCount);
+    } catch (error) {
+      console.error("Error saving usage count:", error);
+    }
+  }, [usageCount]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("hasPaid", hasPaid);
+    } catch (error) {
+      console.error("Error saving payment status:", error);
+    }
+  }, [hasPaid]);
+
+  const handleGenerate = async () => {
+    if (usageCount >= 1 && !hasPaid) {
+      alert("Please pay 2 World Coins for lifetime access.");
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const response = await axios.post("https://worldchain-api.com/generate-app", { description, appId });
+      setGeneratedCode(response.data.code || "Error: No code generated.");
+      setUsageCount((prev) => prev + 1);
+    } catch (error) {
+      console.error("Error generating app:", error);
+      alert("An error occurred. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePayment = async () => {
+    try {
+      const response = await axios.post("https://worldchain-api.com/payment", { amount: 2, currency: "WorldCoins", appId, walletAddress });
+      if (response.data.success) {
+        setHasPaid(true);
+        alert("Payment successful! You now have lifetime access.");
+      } else {
+        alert("Payment failed. Please try again.");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      alert("An error occurred during payment.");
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-2xl mx-auto">
+      <Card>
+        <CardContent className="p-4">
+          <h2 className="text-xl font-bold mb-4">WorldChain AI App Generator</h2>
+          <Textarea
+            placeholder="Describe your app..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="mb-4"
+          />
+          <Button onClick={handleGenerate} disabled={loading}>
+            {loading ? "Generating..." : "Generate App"}
+          </Button>
+          {!hasPaid && usageCount >= 1 && (
+            <Button onClick={handlePayment} className="mt-4">
+              Pay 2 World Coins for Lifetime Access
+            </Button>
+          )}
+          {generatedCode && (
+            <div className="mt-4 bg-gray-900 text-white p-3 rounded overflow-auto">
+              <pre>{generatedCode}</pre>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
